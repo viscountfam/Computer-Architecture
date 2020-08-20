@@ -10,6 +10,7 @@ class CPU:
         self.reg = [0] * 8
         self.ram =  [0] * 256
         self.pc = 0
+        self.sp = 220
 
     def ram_read(self, address):
        return self.ram[address]
@@ -22,36 +23,6 @@ class CPU:
 
         address = 0
 
-        # # For now, we've just hardcoded a program:
-        # if len(sys.argv) < 2:
-        #   program = [
-        #     # From print8.ls8
-        #     0b10000010, # LDI R0,8
-        #     0b00000000,
-        #     0b00001000,
-        #     0b01000111, # PRN R0
-        #     0b00000000,
-        #     0b00000001, # HLT
-        #     ] 
-        #   for instruction in program:
-        #         self.ram[address] = instruction
-        #         address += 1
-        # elif len(sys.argv) == 2:
-        #     filename = sys.argv[1]
-        #     with open(filename) as f:
-        #         address = 0
-        #         for line in f:
-        #             if lin[0] != "#" or line[0] != "":
-        #                 line = line.split("#")
-        #                 try:
-        #                     v = int(line[0], 2)
-        #                 except ValueError:
-        #                     continue
-        #                 self.ram[address] = v
-        #                 address += 1
-        # else:
-        #     print("Only one ls8 program can be loaded")
-        #     sys.exit("too many files present")
         with open(f"examples/{file_name}") as f:
             for line in f:
                 line = line.split("#")
@@ -105,9 +76,7 @@ class CPU:
         while running:
             # print("it's running again")
             ir = self.ram_read(self.pc)
-            # print("IR", ir)
             if ir == 0b10000010:
-               
                 self.reg[self.ram_read(self.pc + 1)] = self.ram_read(self.pc + 2)
                 self.pc += 3
             elif ir == 0b01000111: 
@@ -121,6 +90,23 @@ class CPU:
                 reg_B = self.ram_read(self.pc + 2)
                 self.alu("MUL", reg_A, reg_B)
                 self.pc += 3
+            elif ir == 0b10100000:
+                reg_A = self.ram_read(self.pc + 1)
+                reg_B = self.ram_read(self.pc + 2)
+                self.alu("ADD", reg_A, reg_B)
+                self.pc += 3
+            elif ir == 0b01000110:
+                self.reg[self.ram_read(self.pc + 1)] = self.ram[self.sp]
+                self.sp += 1
+                self.pc += 2
+            elif ir == 0b01000101:
+                self.sp -= 1
+                self.ram[self.sp] = self.reg[self.ram_read(self.pc + 1)]
+                self.pc += 2
             elif ir == 0b00000001:
+                print("program finished")
+                running = False
+            else:
+                print("Invalid Command")
                 running = False
                 
