@@ -1,7 +1,7 @@
 """CPU functionality."""
 
 import sys
-
+LD = 0b10000011
 LDI = 0b10000010
 PRA = 0b01001000
 PRN = 0b01000111
@@ -9,12 +9,28 @@ HLT = 0b00000001
 MUL = 0b10100010
 DIV = 0b10100011
 ADD = 0b10100000
+MOD = 0b10100100
 SUB = 0b10100001
 POP = 0b01000110
 PUSH = 0b01000101
 CALL = 0b01010000
 RET = 0b00010001
-
+NOT = 0b011001001
+OR = 0b10101010
+SHL = 0b10101100
+SHR = 0b10101101
+XOR = 0b10101011
+ST = 0b10100001
+CMP = 0b10100111
+DEC = 0b01100110
+INC = 0b01100101
+JEQ = 0b01010101
+JGE = 0b01011010
+JGT = 0b01010111
+JLE = 0b01011001
+JLT =0b01011000
+JMP = 0b01010100
+JNE = 0b01010110
 
 class CPU:
     """Main CPU class."""
@@ -24,6 +40,9 @@ class CPU:
         self.reg = [0] * 8
         self.ram =  [0] * 256
         self.pc = 0
+        self.E = 0
+        self.L = 0
+        self.G = 0
         # self.sp = 244
         self.running = False
         self.sp = 7
@@ -34,12 +53,30 @@ class CPU:
             HLT: self.HLT,
             MUL: self.MUL,
             DIV: self.DIV,
+            MOD: self.MOD,
             ADD: self.ADD,
             SUB: self.SUB,
             POP: self.POP,
             PUSH: self.PUSH,
             CALL: self.CALL,
-            RET: self.RET
+            RET: self.RET,
+            LD: self.LD,
+            NOT: self.NOT,
+            OR: self.OR,
+            SHR: self.SHR,
+            SHL: self.SHL,
+            XOR: self.XOR,
+            ST: self.ST,
+            CMP: self.CMP,
+            DEC: self.DEC,
+            INC: self.INC,
+            JEQ: self.JEQ,
+            JGE: self.JGE,
+            JGT: self.JGT,
+            JLE: self.JLE,
+            JLT: self.JLT,
+            JMP: self.JMP,
+            JNE: self.JNE,
         }
 
     def ram_read(self, address):
@@ -75,6 +112,36 @@ class CPU:
             self.reg[reg_a] *= self.reg[reg_b]
         elif op == "DIV":
             self.reg[reg_a] /= self.reg[reg_b]
+        elif op == "MOD":
+            self.reg[reg_a] %= self.reg[reg_b]
+        elif op == "OR":
+            self.reg[reg_a] |= self.reg[reg_b]
+        elif op == "SHR":
+            self.reg[reg_a] >>= self.reg[reg_b]
+        elif op == "SHL":
+            self.reg[reg_a] <<= self.reg[reg_b]
+        elif op == "XOR":
+            self.reg[reg_a] ^= self.reg[reg_b]
+        elif op == "NOT":
+            self.reg[reg_a] = ~self.reg[reg_a]
+        elif op == "CMP":
+            if self.reg[reg_a] == self.reg[reg_b]:
+                self.E += 1
+                self.L = 0
+                self.G = 0
+            elif self.reg[reg_a] < self.reg[reg_b]:
+                self.E = 0
+                self.L += 1
+                self.G = 0 
+            elif self.reg[reg_a] > self.reg[reg_b]:
+                self.E = 0
+                self.L = 0
+                self.G += 1
+        elif op == "DEC":
+            self.reg[reg_a] -= 1
+        elif op == "INC":
+            self.reg[reg_a] += 1
+
         else:
             raise Exception("Unsupported ALU operation")
 
@@ -101,6 +168,11 @@ class CPU:
     def LDI(self):
         self.reg[self.ram_read(self.pc + 1)] = self.ram_read(self.pc + 2)
         self.pc += 3
+    def LD(self):
+        reg_A = self.ram_read(self.pc + 1)
+        reg_B = self.ram_read(self.pc + 2)
+        self.reg[reg_A] = self.reg[reg_B]
+        self.pc += 3
     def PRA(self):
         register_address = self.ram_read(self.pc + 1)
         print(self.reg[register_address])
@@ -109,8 +181,46 @@ class CPU:
         index = self.ram_read(self.pc+1)
         print(self.reg[self.ram[self.pc+1]])
         self.pc += 2
+    def ST(self):
+        reg_A = self.ram_read(self.pc + 1)
+        reg_B = self.ram_read(self.pc + 2)
+        self.reg[reg_A] = self.reg[reg_B]
     def HLT(self):
         self.running = False
+    def DEC(self):
+        reg_A = self.ram_read(self.pc + 1)
+        self.alu("DEC", reg_A, None)
+    def INC(self):
+        reg_A = self.ram_read(self.pc + 1)
+        self.alu("INC", reg_A, None)
+    def CMP(self):
+        reg_A = self.ram_read(self.pc + 1)
+        reg_B = self.ram_read(self.pc + 2)
+        self.alu("CMP", reg_A, reg_B)
+        self.pc += 3
+    def NOT(self):
+        reg_A = self.ram_read(self.pc + 1)
+        self.alu("NOT", reg_A, None)
+    def OR(self):
+        reg_A = self.ram_read(self.pc + 1)
+        reg_B = self.ram_read(self.pc + 2)
+        self.alu("OR", reg_A, reg_B)
+        self.pc += 3
+    def SHR(self):
+        reg_A = self.ram_read(self.pc + 1)
+        reg_B = self.ram_read(self.pc + 2)
+        self.alu("SHR", reg_A, reg_B)
+        self.pc += 3
+    def SHL(self):
+        reg_A = self.ram_read(self.pc + 1)
+        reg_B = self.ram_read(self.pc + 2)
+        self.alu("SHL", reg_A, reg_B)
+        self.pc += 3
+    def XOR(self):
+        reg_A = self.ram_read(self.pc + 1)
+        reg_B = self.ram_read(self.pc + 2)
+        self.alu("XOR", reg_A, reg_B)
+        self.pc += 3
     def DIV(self):
         reg_A = self.ram_read(self.pc + 1)
         reg_B = self.ram_read(self.pc + 2)
@@ -120,6 +230,11 @@ class CPU:
         reg_A = self.ram_read(self.pc + 1)
         reg_B = self.ram_read(self.pc + 2)
         self.alu("MUL", reg_A, reg_B)
+        self.pc += 3
+    def MOD(self):
+        reg_A = self.ram_read(self.pc + 1)
+        reg_B = self.ram_read(self.pc + 2)
+        self.alu("MOD", reg_A, reg_B)
         self.pc += 3
     def ADD(self):
         reg_A = self.ram_read(self.pc + 1)
@@ -146,13 +261,46 @@ class CPU:
         self.ram[top] = value
         self.pc += 2
     def CALL(self):
-        print("RAM", self.ram)
         return_addr = self.pc+2
         self.reg[self.sp] -= 1
         self.ram[self.reg[self.sp]] = return_addr
         reg_num = self.ram[self.pc+1]
         subroutine_addr = self.reg[reg_num]
         self.pc = subroutine_addr
+    def JMP(self):
+        reg_num = self.ram_read(self.pc + 1)
+        addr = self.reg[reg_num]
+        self.pc =addr
+    def JEQ(self):
+        if self.E == 1:
+            self.JMP()
+        else:
+            self.pc += 2
+    def JNE(self):
+        if self.E == 0:
+            self.JMP()
+        else:
+            self.pc += 2
+    def JLT(self):
+        if self.L == 1:
+            self.JMP()
+        else:
+            self.pc += 2
+    def JGT(self):
+        if self.G == 1:
+            self.JMP()
+        else:
+            self.pc += 2
+    def JLE(self):
+        if self.L == 1 or self.E == 1:
+            self.JMP()
+        else:
+            self.pc += 2
+    def JGE(self):
+        if self.G == 1 or self.E == 1:
+            self.JMP()
+        else:
+            self.pc += 2
 
     def RET(self):
         self.pc = self.ram[self.reg[self.sp]]
@@ -164,7 +312,6 @@ class CPU:
         self.running = True
         self.reg[self.sp] = 0xf4
         while self.running:
-            # print("it's running again")
             ir = self.ram_read(self.pc)
             self.bt[ir]()
 
