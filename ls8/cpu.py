@@ -15,7 +15,7 @@ POP = 0b01000110
 PUSH = 0b01000101
 CALL = 0b01010000
 RET = 0b00010001
-NOT = 0b011001001
+NOT = 0b01101001
 OR = 0b10101010
 SHL = 0b10101100
 SHR = 0b10101101
@@ -31,7 +31,7 @@ JLE = 0b01011001
 JLT =0b01011000
 JMP = 0b01010100
 JNE = 0b01010110
-
+AND = 0b10101000
 class CPU:
     """Main CPU class."""
 
@@ -77,6 +77,7 @@ class CPU:
             JLT: self.JLT,
             JMP: self.JMP,
             JNE: self.JNE,
+            AND: self.AND,
         }
 
     def ram_read(self, address):
@@ -124,6 +125,8 @@ class CPU:
             self.reg[reg_a] ^= self.reg[reg_b]
         elif op == "NOT":
             self.reg[reg_a] = ~self.reg[reg_a]
+        elif op == "AND":
+            self.reg[reg_a] &= self.reg[reg_b]
         elif op == "CMP":
             if self.reg[reg_a] == self.reg[reg_b]:
                 self.E += 1
@@ -201,6 +204,12 @@ class CPU:
     def NOT(self):
         reg_A = self.ram_read(self.pc + 1)
         self.alu("NOT", reg_A, None)
+        self.pc += 2
+    def AND(self):
+        reg_A = self.ram_read(self.pc + 1)
+        reg_B = self.ram_read(self.pc + 2)
+        self.alu("AND", reg_A, reg_B)
+        self.pc += 3
     def OR(self):
         reg_A = self.ram_read(self.pc + 1)
         reg_B = self.ram_read(self.pc + 2)
@@ -313,6 +322,7 @@ class CPU:
         self.reg[self.sp] = 0xf4
         while self.running:
             ir = self.ram_read(self.pc)
+            # print("ir", ir)
             self.bt[ir]()
 
             # if ir == 0b10000010: #LOAD
